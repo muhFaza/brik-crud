@@ -12,7 +12,11 @@ export const getAllProducts = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { search } = req.query;
+    const { search, page = 1, limit = 10 } = req.query;
+
+    const pageNum = Math.max(1, parseInt(page as string) || 1);
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit as string) || 10));
+    const offset = (pageNum - 1) * limitNum;
 
     const whereCondition: any = {};
     
@@ -21,12 +25,31 @@ export const getAllProducts = async (
         [Op.iLike]: `%${search}%`
       };
     }
-    const products = await Product.findAll({
+
+    const { rows: products, count: totalItems } = await Product.findAndCountAll({
       where: whereCondition,
-      order: [["createdAt", "DESC"]],
+      order: [["id", "DESC"]],
+      limit: limitNum,
+      offset: offset,
     });
 
-    res.json(products);
+    const totalPages = Math.ceil(totalItems / limitNum);
+    const hasNextPage = pageNum < totalPages;
+    const hasPrevPage = pageNum > 1;
+
+    res.json({
+      products,
+      pagination: {
+        currentPage: pageNum,
+        totalPages,
+        totalItems,
+        itemsPerPage: limitNum,
+        hasNextPage,
+        hasPrevPage,
+        nextPage: hasNextPage ? pageNum + 1 : null,
+        prevPage: hasPrevPage ? pageNum - 1 : null,
+      }
+    });
   } catch (error) {
     console.error("Get products error:", error);
     res.status(500).json({ message: "Internal server error" });
@@ -49,92 +72,6 @@ export const getProductById = async (
     res.json(product);
   } catch (error) {
     console.error("Get product error:", error);
-    res.status(500).json({ message: "Internal server error" });
-  }
-};
-
-export const searchProducts = async (
-  req: AuthenticatedRequest,
-  res: Response
-): Promise<void> => {
-  try {
-    const {
-      q,
-      minPrice,
-      maxPrice,
-      inStock,
-      isActive,
-      sortBy = "createdAt",
-      sortOrder = "DESC",
-    } = req.query;
-
-    const whereConditions: any = {};
-
-    if (q && typeof q === "string") {
-      whereConditions[Op.or] = [
-        { name: { [Op.iLike]: `%${q}%` } },
-        { description: { [Op.iLike]: `%${q}%` } },
-      ];
-    }
-
-    if (minPrice || maxPrice) {
-      whereConditions.price = {};
-      if (minPrice && !isNaN(Number(minPrice))) {
-        whereConditions.price[Op.gte] = Number(minPrice);
-      }
-      if (maxPrice && !isNaN(Number(maxPrice))) {
-        whereConditions.price[Op.lte] = Number(maxPrice);
-      }
-    }
-
-    if (inStock !== undefined) {
-      if (inStock === "true") {
-        whereConditions.stock = { [Op.gt]: 0 };
-      } else if (inStock === "false") {
-        whereConditions.stock = { [Op.eq]: 0 };
-      }
-    }
-
-    if (isActive !== undefined) {
-      whereConditions.isActive = isActive === "true";
-    }
-
-
-    const validSortFields = [
-      "name",
-      "price",
-      "stock",
-      "createdAt",
-      "updatedAt",
-    ];
-    const sortField = validSortFields.includes(sortBy as string)
-      ? (sortBy as string)
-      : "createdAt";
-    const sortDirection =
-      (sortOrder as string).toUpperCase() === "ASC" ? "ASC" : "DESC";
-
-    const products = await Product.findAndCountAll({
-      where: whereConditions,
-      order: [[sortField, sortDirection]],
-    });
-
-
-    res.json({
-      products,
-      filters: {
-        query: q || null,
-        minPrice: minPrice ? Number(minPrice) : null,
-        maxPrice: maxPrice ? Number(maxPrice) : null,
-        inStock: inStock || null,
-        isActive: isActive || null,
-      },
-      sorting: {
-        sortBy: sortField,
-        sortOrder: sortDirection,
-      },
-    });
-  } catch (error) {
-    console.error("Search products error:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
