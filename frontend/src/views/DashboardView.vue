@@ -23,8 +23,8 @@
             <div class="px-4 pb-6 sm:px-0">
 
                 <!-- search -->
-                <div class="mb-6">
-                    <div class="max-w-md mx-auto sm:mx-0">
+                <div class="mb-6 flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+                    <div class="flex-1 max-w-md">
                         <div class="relative">
                             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                 <v-icon name="ri-search-line" fill="#6b7280" width="20" height="20" />
@@ -46,6 +46,22 @@
                             </div>
                         </div>
                     </div>
+                    
+                    <!-- items per page -->
+                    <div class="flex items-center gap-2">
+                        <label class="text-sm text-gray-600">Show:</label>
+                        <select
+                            v-model="itemsPerPage"
+                            @change="handleItemsPerPageChange"
+                            class="text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        >
+                            <option value="5">5</option>
+                            <option value="10">10</option>
+                            <option value="20">20</option>
+                            <option value="50">50</option>
+                        </select>
+                        <span class="text-sm text-gray-600">per page</span>
+                    </div>
                 </div>
 
                 <!-- link add product -->
@@ -56,6 +72,11 @@
                     </router-link>
                 </div>
 
+                <!-- results info -->
+                <div v-if="!loading && productsStore.products.length > 0" class="mb-4 text-sm text-gray-600">
+                    Showing {{ getResultsInfo() }}
+                </div>
+
                 <!-- loader -->
                 <div v-if="loading" class="text-center py-8">
                     <div class="text-gray-500 mb-4">Loading...</div>
@@ -64,7 +85,10 @@
 
                 <!-- no products -->
                 <div v-else-if="productsStore.products.length === 0" class="text-center py-8">
-                    <div class="text-gray-500">No products found.</div>
+                    <v-icon name="ri-inbox-line" fill="#9ca3af" width="48" height="48" class="mx-auto mb-4" />
+                    <div class="text-gray-500">
+                        {{ searchQuery ? 'No products found matching your search.' : 'No products found.' }}
+                    </div>
                 </div>
 
                 <!-- products loop -->
@@ -101,6 +125,51 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- pagination -->
+                <div v-if="!loading && productsStore.products.length > 0 && productsStore.pagination.totalPages > 1" 
+                     class="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+                    
+                    <div class="text-sm text-gray-600">
+                        Page {{ productsStore.pagination.currentPage }} of {{ productsStore.pagination.totalPages }}
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <button
+                            @click="handlePrevPage"
+                            :disabled="!productsStore.pagination.hasPrevPage"
+                            class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white"
+                        >
+                            <v-icon name="ri-arrow-left-s-line" fill="currentColor" width="16" height="16" />
+                            Previous
+                        </button>
+
+                        <div class="hidden sm:flex items-center gap-1">
+                            <button
+                                v-for="page in getVisiblePages()"
+                                :key="page"
+                                @click="handleGoToPage(page)"
+                                :class="[
+                                    'px-3 py-2 text-sm font-medium rounded-md',
+                                    page === productsStore.pagination.currentPage
+                                        ? 'bg-indigo-600 text-white'
+                                        : 'text-gray-500 bg-white border border-gray-300 hover:bg-gray-50'
+                                ]"
+                            >
+                                {{ page }}
+                            </button>
+                        </div>
+
+                        <button
+                            @click="handleNextPage"
+                            :disabled="!productsStore.pagination.hasNextPage"
+                            class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white"
+                        >
+                            Next
+                            <v-icon name="ri-arrow-right-s-line" fill="currentColor" width="16" height="16" />
+                        </button>
+                    </div>
+                </div>
             </div>
         </main>
     </div>
@@ -120,10 +189,12 @@ const productsStore = useProductsStore()
 const loading = computed(() => productsStore.loading)
 
 const searchQuery = ref('')
+const itemsPerPage = ref(10)
 let searchTimeout: NodeJS.Timeout | null = null
 
 onMounted(() => {
-    productsStore.fetchProducts()
+    loadItemsPerPageFromStorage()
+    productsStore.fetchProducts(undefined, 1, itemsPerPage.value)
 })
 
 const handleSearch = () => {
@@ -132,14 +203,84 @@ const handleSearch = () => {
     }
     
     searchTimeout = setTimeout(() => {
-        productsStore.fetchProducts(searchQuery.value)
+        productsStore.fetchProducts(searchQuery.value, 1, itemsPerPage.value)
     }, 300)
 }
 
 const clearSearch = () => {
     searchQuery.value = ''
-    productsStore.fetchProducts()
+    productsStore.fetchProducts(undefined, 1, itemsPerPage.value)
 }
+
+// START OF PAGINATION METHODS
+const loadItemsPerPageFromStorage = () => {
+    const stored = localStorage.getItem('productsItemsPerPage')
+    if (stored) {
+        const parsed = parseInt(stored)
+        if ([5, 10, 20, 50].includes(parsed)) {
+            itemsPerPage.value = parsed
+        }
+    }
+}
+
+const saveItemsPerPageToStorage = (value: number) => {
+    localStorage.setItem('productsItemsPerPage', value.toString())
+}
+
+const handleItemsPerPageChange = () => {
+    saveItemsPerPageToStorage(itemsPerPage.value)
+    productsStore.changeItemsPerPage(itemsPerPage.value, searchQuery.value)
+}
+
+const handleGoToPage = (page: number) => {
+    productsStore.goToPage(page, searchQuery.value)
+}
+
+const handleNextPage = () => {
+    productsStore.nextPage(searchQuery.value)
+}
+
+const handlePrevPage = () => {
+    productsStore.prevPage(searchQuery.value)
+}
+
+const getResultsInfo = () => {
+    const { currentPage, itemsPerPage: limit, totalItems } = productsStore.pagination
+    const startItem = (currentPage - 1) * limit + 1
+    const endItem = Math.min(currentPage * limit, totalItems)
+    return `${startItem}-${endItem} of ${totalItems} products`
+}
+
+const getVisiblePages = () => {
+    const { currentPage, totalPages } = productsStore.pagination
+    const pages = []
+    const maxVisible = 5
+    
+    if (totalPages <= maxVisible) {
+        for (let i = 1; i <= totalPages; i++) {
+            pages.push(i)
+        }
+    } else {
+        let start = Math.max(1, currentPage - 2)
+        let end = Math.min(totalPages, currentPage + 2)
+        
+        if (end - start < maxVisible - 1) {
+            if (start === 1) {
+                end = Math.min(totalPages, start + maxVisible - 1)
+            } else {
+                start = Math.max(1, end - maxVisible + 1)
+            }
+        }
+        
+        for (let i = start; i <= end; i++) {
+            pages.push(i)
+        }
+    }
+    
+    return pages
+}
+
+// END OF PAGINATION METHODS
 
 const handleLogout = () => {
   authStore.logout()

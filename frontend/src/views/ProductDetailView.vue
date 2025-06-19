@@ -161,7 +161,9 @@
 import { ref, reactive, onMounted, watch, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useProductsStore } from '@/stores/products'
+import { useToast } from "vue-toastification"
 
+const toast = useToast()
 const route = useRoute()
 const router = useRouter()
 const productsStore = useProductsStore()
@@ -237,6 +239,7 @@ const handleDelete = async () => {
     if (confirm('Apakah anda yakin ingin menghapus produk ini?')) {
         const result = await productsStore.deleteProduct(product.value.id)
         if (result.success) {
+            toast.error('Produk berhasil dihapus!')
             router.push('/')
         } else {
             alert('Gagal menghapus produk')

@@ -106,7 +106,9 @@
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { useProductsStore } from '@/stores/products'
+import { useToast } from "vue-toastification"
 
+const toast = useToast()
 const router = useRouter()
 const productsStore = useProductsStore()
 
@@ -136,6 +138,7 @@ const handleSubmit = async () => {
     })
 
     if (result.success) {
+        toast.success('Produk berhasil dibuat!')
         router.push('/')
     } else {
         error.value = result.error || 'Failed to create product'
