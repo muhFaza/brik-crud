@@ -19,6 +19,9 @@ A Node.js/TypeScript backend application with PostgreSQL database, built with Ex
 6. Run `npm run dev`
 7. Check API at `http://localhost:3000/health`
 
+### User Credential:
+- email: john.doe@example.com
+- pass: password123
 
 ## Installation
 
