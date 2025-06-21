@@ -16,6 +16,15 @@
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true
   },
-  "include": ["src/**/*", "server.js", "types", "utils", "server.ts", "config", "controllers", "middleware", "models", "routes", "config/config.js"],
-  "exclude": ["node_modules", "dist"]
+  "include": [
+    "server.ts",
+    "types/**/*",
+    "utils/**/*",
+    "config/**/*",
+    "controllers/**/*",
+    "middleware/**/*",
+    "models/**/*",
+    "routes/**/*"
+  ],
+  "exclude": ["node_modules", "dist", "**/*.js"]
 }
