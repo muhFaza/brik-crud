@@ -190,7 +190,7 @@ const loading = computed(() => productsStore.loading)
 
 const searchQuery = ref('')
 const itemsPerPage = ref(10)
-let searchTimeout: NodeJS.Timeout | null = null
+let searchTimeout: ReturnType<typeof setTimeout> | null = null;
 
 onMounted(() => {
     loadItemsPerPageFromStorage()

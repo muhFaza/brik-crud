@@ -2,6 +2,13 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { productsApi, type Product, type CreateProductData } from '@/services/api'
 
+export interface PaginatedProductsResponse {
+  products: Product[]
+  pagination: PaginationMeta
+}
+
+export type FetchProductsResponse = PaginatedProductsResponse | Product[]
+
 export interface PaginationMeta {
   currentPage: number
   totalPages: number
@@ -11,6 +18,10 @@ export interface PaginationMeta {
   hasPrevPage: boolean
   nextPage: number | null
   prevPage: number | null
+}
+
+function isPaginatedResponse(response: FetchProductsResponse): response is PaginatedProductsResponse {
+  return (response as PaginatedProductsResponse).products !== undefined
 }
 
 export const useProductsStore = defineStore('products', () => {
@@ -41,13 +52,15 @@ export const useProductsStore = defineStore('products', () => {
       }
   
       const response = await productsApi.getAll(params)
+      const data: FetchProductsResponse = response.data
       
-      if (response.data.products && response.data.pagination) {
-        products.value = response.data.products
-        pagination.value = response.data.pagination
+      if (isPaginatedResponse(data)) {
+        products.value = data.products
+        pagination.value = data.pagination
       } else {
-        products.value = response.data
+        products.value = data
       }
+
     } catch (error) {
       console.error('Error fetching products:', error)
     } finally {
