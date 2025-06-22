@@ -1,2 +1,4 @@
 .env
 project_structure.txt
+fullchain.pem
+privkey.pem
