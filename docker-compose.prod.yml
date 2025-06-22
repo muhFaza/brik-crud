@@ -4,18 +4,17 @@ services:
   # PostgreSQL Database
   postgres:
     image: postgres:15-alpine
-    container_name: myapp_postgres_prod
+    container_name: brik_postgres_prod
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - postgres_data_prod:/var/lib/postgresql/data
-      - ./init-db.sql:/docker-entrypoint-initdb.d/01-init.sql
     ports:
-      - "127.0.0.1:5432:5432"  # Only allow local connections
+      - "127.0.0.1:5433:5432"  # Different port to avoid conflicts
     networks:
-      - app-network
+      - brik-network
     restart: unless-stopped
     env_file:
       - .env
@@ -25,7 +24,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: myapp_backend_prod
+    container_name: brik_backend_prod
     environment:
       NODE_ENV: ${NODE_ENV}
       PORT: ${PORT}
@@ -36,35 +35,35 @@ services:
       DB_USER: ${POSTGRES_USER}
       DB_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
-      - "127.0.0.1:3000:3000"  # Only allow local connections
+      - "127.0.0.1:3001:3000"
     depends_on:
       - postgres
     networks:
-      - app-network
+      - brik-network
     restart: unless-stopped
     env_file:
       - .env
 
-  # Frontend with Nginx
+  # Frontend with SSL support
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: myapp_frontend_prod
+    container_name: brik_frontend_prod
     ports:
-      - "80:80"
-      - "443:443"
+      - "8080:80"    # Different HTTP port
+      - "8443:443"   # Different HTTPS port
     depends_on:
       - backend
     networks:
-      - app-network
+      - brik-network
     restart: unless-stopped
     volumes:
-      - ./nginx/ssl:/etc/nginx/ssl:ro  # For SSL certificates
+      - ./nginx/ssl:/etc/nginx/ssl:ro  # Mount SSL certificates
 
 volumes:
   postgres_data_prod:
 
 networks:
-  app-network:
+  crud-network:
     driver: bridge
