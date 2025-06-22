@@ -1,36 +1,115 @@
-# Use official Node.js runtime as base image
-FROM node:18-alpine
+# Backup current config
+cp /opt/myapp/frontend/nginx.conf /opt/myapp/frontend/nginx.conf.backup
 
-# Set working directory in container
-WORKDIR /app
+# Create new SSL-enabled config
+cat > ./frontend/nginx.conf << 'EOF'
+events {
+    worker_connections 1024;
+}
 
-# Copy package files first for better caching
-COPY package*.json ./
-COPY tsconfig.json ./
+http {
+    include       /etc/nginx/mime.types;
+    default_type  application/octet-stream;
 
-# Install ALL dependencies (including devDependencies for TypeScript compilation)
-RUN npm ci
+    # Security headers
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "no-referrer-when-downgrade" always;
+    add_header Content-Security-Policy "default-src 'self' http: https: data: blob: 'unsafe-inline'" always;
 
-# Copy all source code
-COPY . .
+    sendfile        on;
+    keepalive_timeout  65;
 
-# Build the TypeScript application (same as what works locally)
-RUN npm run build
+    # Gzip compression
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 1024;
+    gzip_proxied any;
+    gzip_comp_level 6;
+    gzip_types
+        text/plain
+        text/css
+        text/xml
+        text/javascript
+        application/json
+        application/javascript
+        application/xml+rss
+        application/atom+xml
+        image/svg+xml;
 
-# Verify the build worked
-RUN ls -la dist/ && ls -la dist/server.js
+    # Rate limiting
+    limit_req_zone $binary_remote_addr zone=api:10m rate=10r/s;
 
-# Clean up devDependencies after successful build
-RUN npm ci --only=production && npm cache clean --force
+    # HTTP Server (Port 80) - Redirect to HTTPS
+    server {
+        listen 80;
+        server_name muhfaza.my.id www.muhfaza.my.id;
+        
+        # Redirect all HTTP traffic to HTTPS
+        return 301 https://$server_name$request_uri;
+    }
 
-# Create non-root user for security
-RUN addgroup -g 1001 -S nodejs
-RUN adduser -S nodejs -u 1001
-RUN chown -R nodejs:nodejs /app
-USER nodejs
+    # HTTPS Server (Port 443) - Main Application
+    server {
+        listen 443 ssl http2;
+        server_name muhfaza.my.id www.muhfaza.my.id;
 
-# Expose port
-EXPOSE 3000
+        # SSL Certificate Configuration
+        ssl_certificate /etc/nginx/ssl/fullchain.pem;
+        ssl_certificate_key /etc/nginx/ssl/privkey.pem;
 
-# Start the application
-CMD ["npm", "start"]
+        # SSL Security Settings
+        ssl_protocols TLSv1.2 TLSv1.3;
+        ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-SHA256:ECDHE-RSA-AES256-SHA384;
+        ssl_prefer_server_ciphers off;
+        ssl_session_cache shared:SSL:10m;
+        ssl_session_timeout 10m;
+
+        # HSTS (HTTP Strict Transport Security)
+        add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+
+        root /usr/share/nginx/html;
+        index index.html;
+
+        # Security
+        server_tokens off;
+
+        # Handle Vue.js routing
+        location / {
+            try_files $uri $uri/ /index.html;
+        }
+
+        # API proxy to backend with rate limiting
+        location /api/ {
+            limit_req zone=api burst=20 nodelay;
+            
+            proxy_pass http://backend:3000/;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header X-Forwarded-Host $host;
+            proxy_set_header X-Forwarded-Port $server_port;
+            
+            # Timeout settings
+            proxy_connect_timeout 30s;
+            proxy_send_timeout 30s;
+            proxy_read_timeout 30s;
+        }
+
+        # Static assets caching
+        location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg)$ {
+            expires 1y;
+            add_header Cache-Control "public, immutable";
+        }
+
+        # Health check endpoint
+        location /health {
+            access_log off;
+            return 200 "healthy\n";
+            add_header Content-Type text/plain;
+        }
+    }
+}
+EOF
