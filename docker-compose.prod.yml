@@ -31,7 +31,7 @@ services:
       dockerfile: Dockerfile
     container_name: brik_frontend_prod
     environment:
-      - VITE_API_URL=${VITE_API_URL}
+      - VITE_API_URL: ${VITE_API_URL}
     # ports:
     #   - "8080:80"    # Different HTTP port
     #   - "8443:443"   # Different HTTPS port
