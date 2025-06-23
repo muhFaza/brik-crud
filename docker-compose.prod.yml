@@ -17,7 +17,7 @@ services:
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
     ports:
-      - "127.0.0.1:3001:3000"
+      # - "127.0.0.1:3001:3000"
     networks:
       - nginx-proxy_network
     restart: unless-stopped
@@ -30,9 +30,11 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: brik_frontend_prod
-    ports:
-      - "8080:80"    # Different HTTP port
-      - "8443:443"   # Different HTTPS port
+    environment:
+      - VITE_API_URL=${VITE_API_URL}
+    # ports:
+    #   - "8080:80"    # Different HTTP port
+    #   - "8443:443"   # Different HTTPS port
     depends_on:
       - backend
     networks:
@@ -40,6 +42,8 @@ services:
     restart: unless-stopped
     volumes:
       - ./nginx/ssl:/etc/nginx/ssl:ro  # Mount SSL certificates
+    env_file:
+      - .env
 
 networks:
   nginx-proxy_network:
