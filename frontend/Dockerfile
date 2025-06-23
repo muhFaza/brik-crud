@@ -22,8 +22,8 @@ FROM nginx:alpine as production-stage
 # Copy built app from build stage
 COPY --from=build-stage /app/dist /usr/share/nginx/html
 
-# Copy custom nginx config (optional)
-COPY nginx.conf /etc/nginx/nginx.conf
+# Copy a custom Nginx configuration for a Single Page Application (SPA)
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Expose port 80
 EXPOSE 80
