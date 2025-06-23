@@ -1,24 +1,6 @@
 version: '3.8'
 
 services:
-  # PostgreSQL Database
-  postgres:
-    image: postgres:15-alpine
-    container_name: brik_postgres_prod
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    volumes:
-      - postgres_data_prod:/var/lib/postgresql/data
-    ports:
-      - "127.0.0.1:5433:5432"  # Different port to avoid conflicts
-    networks:
-      - brik-network
-    restart: unless-stopped
-    env_file:
-      - .env
-
   # Backend API
   backend:
     build:
@@ -31,15 +13,15 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       DB_HOST: ${DB_HOST}
       DB_PORT: ${DB_PORT}
-      DB_NAME: ${POSTGRES_DB}
-      DB_USER: ${POSTGRES_USER}
-      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
     ports:
       - "127.0.0.1:3001:3000"
     depends_on:
       - postgres
     networks:
-      - brik-network
+      - nginx-proxy_network
     restart: unless-stopped
     env_file:
       - .env
@@ -56,7 +38,7 @@ services:
     depends_on:
       - backend
     networks:
-      - brik-network
+      - nginx-proxy_network
     restart: unless-stopped
     volumes:
       - ./nginx/ssl:/etc/nginx/ssl:ro  # Mount SSL certificates
@@ -65,5 +47,6 @@ volumes:
   postgres_data_prod:
 
 networks:
-  brik-network:
-    driver: bridge
+  nginx-proxy_network:
+    name: nginx-proxy_network
+    external: true

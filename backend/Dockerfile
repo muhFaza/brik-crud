@@ -17,9 +17,6 @@ COPY . .
 # Build the TypeScript application (same as what works locally)
 RUN npm run build
 
-# Verify the build worked
-RUN ls -la dist/ && ls -la dist/server.js
-
 # Clean up devDependencies after successful build
 RUN npm ci --only=production && npm cache clean --force
 
