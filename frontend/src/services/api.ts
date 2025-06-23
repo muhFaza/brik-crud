@@ -1,9 +1,9 @@
 import axios from 'axios'
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://brik.muhfaza.my.id/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://brik.muhfaza.my.id/api/api';
 
 const api = axios.create({
-  baseURL: new URL('/api', API_BASE_URL).href
+  baseURL: API_BASE_URL
 });
 
 
