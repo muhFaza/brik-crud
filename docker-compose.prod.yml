@@ -16,7 +16,7 @@ services:
       DB_NAME: ${DB_NAME}
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
-    ports:
+    # ports:
       # - "127.0.0.1:3001:3000"
     networks:
       - nginx-proxy_network
