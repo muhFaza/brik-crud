@@ -18,8 +18,6 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
     ports:
       - "127.0.0.1:3001:3000"
-    depends_on:
-      - postgres
     networks:
       - nginx-proxy_network
     restart: unless-stopped
@@ -42,9 +40,6 @@ services:
     restart: unless-stopped
     volumes:
       - ./nginx/ssl:/etc/nginx/ssl:ro  # Mount SSL certificates
-
-volumes:
-  postgres_data_prod:
 
 networks:
   nginx-proxy_network:
